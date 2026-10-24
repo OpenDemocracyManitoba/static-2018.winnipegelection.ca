@@ -1,0 +1,101 @@
+# 2018.winnipegelection.ca (static archive)
+
+Static HTML copy of **2018.winnipegelection.ca**, Open Democracy Manitoba's guide to the 2018 Winnipeg municipal election. It ran on WordPress 5.9.19, with the ElectionData-V2 theme supplied by the OpenDemocracyPlugin-master plugin. It was crawled from olddroplet (`odm-nginx-ruby-php-2018`, 159.203.24.194) on 2026-10-24, before the server was retired.
+
+* `site/` holds the crawl: 1,430 files, 72 MB.
+* `crawl.log.gz` holds the wget log.
+
+The WordPress source, the DB dump (`2018_winnipegelection_ca`) and the nginx vhost are in the private repo `OpenDemocracyManitoba/archive-2018.winnipegelection.ca`.
+
+## How it was crawled
+
+The crawl ran from a workstation against the origin directly (an `/etc/hosts` entry, bypassing Cloudflare). wp-cron was disabled and the site was frozen first.
+
+```
+wget --mirror --page-requisites --adjust-extension --restrict-file-names=windows \
+     --no-host-directories --directory-prefix=site \
+     -e robots=off --wait=0.1 --user-agent='ODM-archiver/1.0' \
+     --reject-regex='(/wp-json|[?&]rest_route=|xmlrpc\.php|wp-login\.php|/wp-admin|[?&]replytocom=|/feed/?$|/trackback/?$|[?&]s=|/candidates/[^/]+/[0-9]+/|[?&]p=[0-9]+)' \
+     -o crawl.log https://2018.winnipegelection.ca/
+```
+
+* It ran on 2026-10-24, 11:44–11:51 CDT, and downloaded 1,426 files. wget exited 8 because some URLs returned 404.
+* The last two reject patterns skip a crawler trap and WordPress `/?p=N` shortlinks:
+  * `/candidates/<slug>/<N>/` is WordPress's path form of a paged candidate page, and each one has its own pager. See the 2016 archive for the details.
+  * `/?p=N` shortlinks are duplicates of pages saved at their real paths, so they aren't archived (owner decision, 2026-10-24).
+* There is no `--convert-links`, so the saved HTML keeps its original absolute `https://2018.winnipegelection.ca/…` hrefs. The pager uses root-relative ones.
+
+Four files are referenced only where wget doesn't look, so they were copied in from the source tree:
+
+* `wp-content/uploads/2018/07/cropped-favicon-1024-270x270.png` (icon `<meta>` tags);
+* `wp-content/uploads/2018/07/winnipeg_skyline.jpg` (CSS);
+* `wp-includes/js/wp-emoji-release.min.js` (inline JS);
+* `wp-content/themes/ElectionData/ElectionData-V2/js/html5.js` (an IE conditional comment).
+
+On the server, `wp-content/themes/ElectionData` is a symlink to `wp-content/plugins/OpenDemocracyPlugin-master/theme/`.
+
+## Changes made on the live site before the crawl
+
+The DB wasn't modified. The private archive repo has the untouched source and dump.
+
+* **wp-cron disabled** (`DISABLE_WP_CRON`, and nginx returns 403 for `/wp-cron.php`). This stopped the news scraper.
+* **Candidate news paging fixed.** Candidate pages link to `?page=N#news`, but WordPress 5.9 301'd every `?page=N` back to page 1 (`redirect_canonical`, and `WP::handle_404` before it). The mu-plugin `wp-content/mu-plugins/odm-archive-candidate-paging.php` turns both off for `ed_candidates` with `page` > 1.
+* **Jetpack's image/asset CDN turned off.** The site served images and core CSS/JS from `i0.wp.com` / `c0.wp.com` (Jetpack modules `photon`, `photon-cdn`), which wget doesn't fetch. The mu-plugin `odm-archive-no-jetpack-cdn.php` drops those modules. The crawl has no `wp.com` CDN references.
+* **WP-Super-Cache:** its cache was moved aside, so the crawl saw freshly rendered pages. The cache comments in the HTML come from the crawl itself.
+
+## Completeness
+
+|Check|Result|
+|-|-|
+|Candidate pages|174 of 174 published `ed_candidates`. `candidates/3336/` is a real candidate (Tracey Drexler) whose slug is a number.|
+|Paginated candidates|37, with 270 extra news pages. None missing, none identical to page 1.|
+|News|1,397 of the 1,405 approved news articles appear on some page (details below)|
+|Questionnaire answers|490 question/answer pairs on 101 candidate pages. The DB has 476 non-empty `ed_answers` out of 870, the rest being empty placeholders.|
+|Uploads|854 referenced, 2 missing (below). The crawl holds 852 of the 1,510 files in the source uploads tree; the rest aren't linked from any page.|
+|Asset CDNs|no `i0.wp.com` / `c0.wp.com` references|
+
+**News.** There is no paginated news archive on this site: `news_articles.html` shows the latest 90 items, and older news is reachable only through the candidate pages.
+
+The plugin moderates news, and only `approved` articles were ever shown. Of the 2,504 published articles, 1,405 are approved; 981 are `rejected` and 118 are `new`.
+
+1,397 of the approved articles appear in the crawl. The other 8 couldn't be reached on the live site either. The cause is in the theme's `display_news_summaries()`, and **it's archived as is** (owner decision, 2026-10-24):
+
+* 2 mention only Steph Meilleur, whose candidate page isn't published.
+* The pager computes `total = round(count / 10)`, so a candidate's last page is never linked when it would hold fewer than 5 articles. For example, Garth Steek has 33 articles but 3 pages; Matt Allard has 103 but 10 pages.
+* An article with no summary for that candidate is skipped, so some pages show 9 items.
+* Some articles were scraped twice under two post IDs, so they appear twice in a list.
+
+The candidate pages carry the theme's notice "Showing news articles published after May 1st 2018". That's only text: `get_news()` has no date filter. All but one approved article are from May 2018 or later anyway.
+
+**404s:**
+
+* `wp-content/themes/ElectionData/ElectionData-V2/ipad4/arrow.gif` and `arrowl.gif`: referenced by the theme CSS, and missing on the live site too.
+* `wp-content/uploads/2018/09/Downtown-Winnipeg-BIZ-Mayoral-Forum-Candidate-Survey-Answers-1.pdf` and `wp-content/uploads/2018/10/KeyIssuesWinnipeg-web.pdf`: linked from content, but not on the server.
+
+## Links to other hosts
+
+4 files (`frequently-asked-questions/`, `about-open-democracy-manitoba/` and their slashless copies) link to `http://www.manitobaelection.ca/frequently-asked-questions/#news`, the "news gathering process" explanation on the provincial site. That's a real cross-site link, left as it is.
+
+There were no references to `upcoming.manitobaelection.ca` or `159.203.24.194`.
+
+## wget quirk, left as is
+
+`frequently-asked-questions.html`, `news_articles.html`, `press-mentions.html`, `press-releases.html` and `who-constituency.html` at the root are wget's saves of slashless links (e.g. `/news_articles`). The server 301'd each one to the slash form, and wget saved the redirect target under the slashless name. Static hosting with `auto-trailing-slash` serves `/news_articles` from `news_articles.html`.
+
+## File names with `@` (query strings)
+
+`--restrict-file-names=windows` saves a URL's `?` as `@`. This commit has:
+
+* 307 `candidates/<slug>/index.html@page=N.html` files: 270 for pages 2…N, plus 37 `@page=1` copies identical to the candidate's base page;
+* 12 `@ver=` files;
+* `we2018address/address_lookup.css@3.css` and `address_lookup.js@17`, hand-added cache-busters (`?3`, `?17`).
+
+**This mapping is temporary.** The next commit runs `transform.py` to switch to path-based URLs; see below.
+
+## Secret scan
+
+The Phase A §7.2 scan was run over `site/` and found nothing. It checks for:
+
+* no `.git`, `.env`, `.ftpconfig`, `.htpasswd`, `debug.log`, `*.php` or `*.sql*` files;
+* no `DB_PASSWORD`, `AUTH_KEY`, `SECURE_AUTH`, private keys, `phpinfo()` or `mysql(i)_connect` in any text file;
+* no `*.php.html` pages.

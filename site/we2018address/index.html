@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  	<meta charset="utf-8">
+  	<title>Winnipeg Election 2018 Address Lookup</title>
+  	<link rel="stylesheet" href="address_lookup.css?3">
+    <link rel="stylesheet" id="franklin-gfont-css" href="https://fonts.googleapis.com/css?family=Libre+Franklin%3A400%2C700&amp;ver=4.9.8" type="text/css" media="all">
+    <script src="https://unpkg.com/vue@2.5.17/dist/vue.min.js"></script>
+    <script src="https://d2wy8f7a9ursnm.cloudfront.net/v4/bugsnag.min.js"></script>
+    <script src="https://d2wy8f7a9ursnm.cloudfront.net/bugsnag-plugins/v1/bugsnag-vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4/dist/es6-promise.auto.min.js"></script>
+    <script src="https://unpkg.com/axios@0.18.0/dist/axios.min.js"></script>
+  </head>
+  <body id="home">
+    <div id="app" v-cloak>
+      <label for="userland">
+        Search Your Address</span>
+      </label>
+      <input :value="address" @input="function(evt) {address = evt.target.value}" id="userland" placeholder="Street Number and Name Only" autocomplete="off"><br>
+
+      <div v-show="address.length > 4 && possible_addresses.length === 0">
+        No results yet. Continue typing street name <em>without&nbsp;</em> street type (St, Ave, Blvd, etc). 
+      </div>
+
+      <div v-show="possible_addresses.length > 1">
+        {{ possible_addresses.length }} possible addresses found. Continue typing street name.
+      </div>
+
+      <div v-show="possible_addresses.length === 1" v-for='address in possible_addresses'>
+        <h2>{{ address.street_number }} {{ address.street_name }} {{ address.street_type }}</h2>
+        <h3><a target="_parent" href="https://www.winnipegelection.ca/constituencies/mayoral-candidates/">Your <b>Mayoral</b> Candidates</a></h3>
+        <h3><a target="_parent" :href="address.ward_url">Your <b>{{ address.ward_as_of_september_17 }} City Council</b> Candidates</a></h3>
+        <h3 v-if="address.trustee_url"><a target="_parent" :href="address.trustee_url">Your <b>{{ address.school_division }} {{ address.school_division_ward }} School Trustee</b> Candidates</a></h3>
+        <h3><a target="_parent" href="https://www.winnipegelection.ca/constituencies/portage-and-main-ballot-question/"><b>Portage and Main</b> Ballot Question</a></h3>
+        <h3><a target="_blank" href="https://www.winnipeg.ca/clerks/election/election2018/registration/WhereDoIVote.stm#where-do-i-vote">Find Your <b>Voting Location</b></a></h3>
+      </div>
+      <br>
+
+      <p class="feedback">Help <a target="_parent" href="https://www.winnipegelection.ca/about-open-democracy-manitoba/">ODM</a> improve this search tool. <a target="_blank" href="https://docs.google.com/forms/d/e/1FAIpQLSdxuUjFZbLpF5zF7ZVYhVt9-HK034rzhS7iNja9p7EK30dcJw/viewform?usp=sf_link">Leave us feedback on your experience.</a></p>
+    </div>
+    <script src="debounce.js"></script>
+    <script src="address_lookup.js?17"></script>
+  </body>
+</html>
