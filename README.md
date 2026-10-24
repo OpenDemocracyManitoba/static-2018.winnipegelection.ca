@@ -2,7 +2,8 @@
 
 Static HTML copy of **2018.winnipegelection.ca**, Open Democracy Manitoba's guide to the 2018 Winnipeg municipal election. It ran on WordPress 5.9.19, with the ElectionData-V2 theme supplied by the OpenDemocracyPlugin-master plugin. It was crawled from olddroplet (`odm-nginx-ruby-php-2018`, 159.203.24.194) on 2026-10-24, before the server was retired.
 
-* `site/` holds the crawl: 1,430 files, 72 MB.
+* `site/` holds the crawl: 1,393 files, after the transform commit described below.
+* `transform.py` is the script that made the second commit.
 * `crawl.log.gz` holds the wget log.
 
 The WordPress source, the DB dump (`2018_winnipegelection_ca`) and the nginx vhost are in the private repo `OpenDemocracyManitoba/archive-2018.winnipegelection.ca`.
@@ -82,15 +83,31 @@ There were no references to `upcoming.manitobaelection.ca` or `159.203.24.194`.
 
 `frequently-asked-questions.html`, `news_articles.html`, `press-mentions.html`, `press-releases.html` and `who-constituency.html` at the root are wget's saves of slashless links (e.g. `/news_articles`). The server 301'd each one to the slash form, and wget saved the redirect target under the slashless name. Static hosting with `auto-trailing-slash` serves `/news_articles` from `news_articles.html`.
 
-## File names with `@` (query strings)
+## Commits and URL mapping
 
-`--restrict-file-names=windows` saves a URL's `?` as `@`. This commit has:
+The repo has two commits:
 
-* 307 `candidates/<slug>/index.html@page=N.html` files: 270 for pages 2…N, plus 37 `@page=1` copies identical to the candidate's base page;
-* 12 `@ver=` files;
-* `we2018address/address_lookup.css@3.css` and `address_lookup.js@17`, hand-added cache-busters (`?3`, `?17`).
+1. **Raw crawl.** `--restrict-file-names=windows` saved each URL's `?` as `@`.
+2. **Path-based URLs** (owner decision, 2026-10-24), made by `python3 -I transform.py 2018.winnipegelection.ca --apply`:
 
-**This mapping is temporary.** The next commit runs `transform.py` to switch to path-based URLs; see below.
+|Old URL (live site)|Crawl file (commit 1)|Now|
+|-|-|-|
+|`/candidates/<slug>/?page=N#news`|`candidates/<slug>/index.html@page=N.html`|`candidates/<slug>/page/N/index.html` (270 files; 37 candidates)|
+|`/candidates/<slug>/?page=1#news`|`candidates/<slug>/index.html@page=1.html` (37 files)|dropped: identical to `candidates/<slug>/index.html`, apart from cache comments|
+|`/candidates/<slug>/<N>/` (canonical of a paged candidate page)|(crawler trap, not fetched)|canonicals now point at `…/page/N/` (270)|
+|`<file>?ver=X`|`<file>@ver=X`, `<file>@ver=X.css`|`<file>` (12 files; no plain copy existed)|
+|`we2018address/address_lookup.css?3`, `address_lookup.js?17`|`address_lookup.css@3.css`, `address_lookup.js@17`|`address_lookup.css`, `address_lookup.js`. These were the owner's hand-added cache-busters (owner decision, 2026-10-24).|
+
+The transform also rewrote the links in the HTML:
+* 3,092 pager links: `?page=N` → `page/N/`, keeping `#news`, and `?page=1` → the bare candidate path.
+* 5,671 cache-buster query strings stripped, including the JSON-escaped emoji-loader URL and the two relative links on `we2018address/`.
+* 16 `<link rel='shortlink'>` tags removed.
+
+Only the external Font Awesome stylesheet keeps a `?ver=`. The transform only rewrites a link when its new target is in `site/`, and it never overwrites a file.
+
+**No `@` files are left.** An internal-link check finds **0 unresolved out of 36,416**. It covers every `https://2018.winnipegelection.ca/…`, root-relative or `url()` reference, ignores the blocked `/wp-json` and `xmlrpc.php` links, and counts `/foo` → `foo.html` as resolved.
+
+**For the hosting phase:** 301 `?page=N` to `…/page/N/` (`N=1` → the bare path), and `/candidates/<slug>/<N>/` to `…/page/N/`. Query strings on assets need no rule.
 
 ## Secret scan
 
